@@ -2,6 +2,9 @@ package vcsview
 
 import (
 	"bytes"
+	"fmt"
+	"io"
+	"os"
 	"regexp"
 )
 
@@ -11,6 +14,12 @@ var (
 
 type Git struct {
 	Cli
+}
+
+// add specific params to execution
+func (g *Git) Execute(dir string, out io.Writer, params ...string) error {
+	params = append([]string{"--no-pager"}, params...)
+	return g.Cli.Execute(dir, out, params...)
 }
 
 // Returns repository settings pathname
@@ -29,4 +38,24 @@ func (g Git) Version() (string, error) {
 	}
 
 	return versionPattern.FindString(buf.String()), nil
+}
+
+// Check project repository
+// ProjectPath is absolute path to project path
+// Returns error if repository not found at provided projectPath
+// Returns nil if repository found
+func (g Git) CheckRepository(projectPath string) error {
+	repoPath := projectPath+string(os.PathSeparator)+g.RepositoryPathname()
+
+	stats, err := os.Stat(repoPath)
+
+	if err != nil {
+		return err
+	}
+
+	if !stats.IsDir() {
+		return fmt.Errorf("Git repository not found here: %s", projectPath)
+	}
+
+	return nil
 }

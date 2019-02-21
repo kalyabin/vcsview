@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	noRepositoryPath = "testdata"
 	gitRepositoryPath = "testdata"+string(os.PathSeparator)+"git"
 	hgRepositoryPath = "testdata"+string(os.PathSeparator)+"hg"
 )

@@ -55,3 +55,25 @@ func TestGit_Version(t *testing.T) {
 		t.Errorf("Expected empty git version, non given")
 	}
 }
+
+func TestGit_CheckRepository(t *testing.T) {
+	g := MakeGitMock(t)
+
+	cases := []struct{
+		projectPath string
+		wantFound bool
+	}{
+		{gitRepositoryPath, true},
+		{hgRepositoryPath, false},
+	}
+
+	for key, testCase := range cases {
+		err := g.CheckRepository(testCase.projectPath)
+
+		if testCase.wantFound && err != nil {
+			t.Errorf("[%d] Git.CheckRepository(%s) = %v, want: nil", key, testCase.projectPath, err)
+		} else if !testCase.wantFound && err == nil {
+			t.Errorf("[%d] Git.CheckRepository(%s) = nil, want: error", key, testCase.projectPath)
+		}
+	}
+}
