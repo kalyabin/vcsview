@@ -8,10 +8,6 @@ import (
 	"regexp"
 )
 
-var (
-	versionPattern = regexp.MustCompile(`([\d]+\.?([\d]+)?\.([\d]+)?)`)
-)
-
 type Git struct {
 	Cli
 }
@@ -31,6 +27,8 @@ func (g Git) RepositoryPathname() string {
 // Check Git version
 // returns error if git command not found, or it hasn't version arguments
 func (g Git) Version() (string, error) {
+	versionPattern := regexp.MustCompile(`([\d]+\.?([\d]+)?\.([\d]+)?)`)
+
 	buf := new(bytes.Buffer)
 
 	if err := g.Execute(".", buf, "--version"); err != nil {

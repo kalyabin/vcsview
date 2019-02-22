@@ -38,7 +38,7 @@ func (r Repository) FilesList(subDir string) ([]File, error) {
 
 	// get relative file path
 	relativePath, _ := filepath.Rel(r.ProjectPath, path)
-	relativePath = strings.TrimLeft(relativePath, "."+pathSeparator)
+	relativePath = strings.TrimPrefix(relativePath, "."+pathSeparator)
 
 	// seek files
 	files, err := ioutil.ReadDir(string(path))
@@ -54,8 +54,7 @@ func (r Repository) FilesList(subDir string) ([]File, error) {
 			continue
 		}
 
-		file := File{i.Name(), string(relativePath), i.IsDir()}
-		result = append(result, file)
+		result = append(result, NewFileFromProjectList(i, relativePath))
 	}
 
 	return result, nil
