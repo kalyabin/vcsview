@@ -9,6 +9,19 @@ const (
 	pathSeparator = string(os.PathSeparator)
 )
 
+type FileStatus string
+
+const(
+	FileAdded FileStatus = "A"
+	FileCopied FileStatus = "C"
+	FileDeleted FileStatus = "D"
+	FileModified FileStatus = "M"
+	FileRenamed FileStatus = "R"
+	FileTyped FileStatus = "T"
+	FileUnmerged FileStatus = "U"
+	FileUnknownStatus FileStatus = "X"
+)
+
 // Project file with relative path
 type File struct {
 	// File name

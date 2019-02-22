@@ -32,7 +32,7 @@ func (r Repository) FilesList(subDir string) ([]File, error) {
 
 	path = filepath.Clean(path)
 
-	if len([]rune(path)) < len([]rune(r.ProjectPath)) || string([]rune(path)[:len([]rune(r.ProjectPath))]) != r.ProjectPath {
+	if rPath, pPath := []rune(path), []rune(r.ProjectPath); len(rPath) < len(pPath) || string(rPath[:len(pPath)]) != r.ProjectPath {
 		return result, fmt.Errorf("Directory %s out of %s", path, r.ProjectPath)
 	}
 
