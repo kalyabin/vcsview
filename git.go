@@ -45,7 +45,7 @@ func (g Git) Version() (string, error) {
 // Returns error if repository not found at provided projectPath
 // Returns nil if repository found
 func (g Git) CheckRepository(projectPath string) error {
-	repoPath := projectPath+string(os.PathSeparator)+g.RepositoryPathname()
+	repoPath := projectPath+pathSeparator+g.RepositoryPathname()
 
 	stats, err := os.Stat(repoPath)
 

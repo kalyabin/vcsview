@@ -9,8 +9,8 @@ import (
 
 const (
 	noRepositoryPath = "testdata"
-	gitRepositoryPath = "testdata"+string(os.PathSeparator)+"git"
-	hgRepositoryPath = "testdata"+string(os.PathSeparator)+"hg"
+	gitRepositoryPath = "testdata"+pathSeparator+"git"
+	hgRepositoryPath = "testdata"+pathSeparator+"hg"
 )
 
 // Check testing repository
@@ -25,11 +25,11 @@ func checkRepo(repoType string, repoPath string) error {
 	switch repoType {
 	case "hg":
 		repoTypeName = "Mercurial"
-		vcsPath += string(os.PathSeparator) + ".hg"
+		vcsPath += pathSeparator + ".hg"
 		cmdName = "hg"
 	case "git":
 		repoTypeName = "GIT"
-		vcsPath += string(os.PathSeparator) + ".git"
+		vcsPath += pathSeparator + ".git"
 		cmdName = "git"
 	}
 
