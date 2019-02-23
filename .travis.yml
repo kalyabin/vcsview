@@ -1,8 +1,6 @@
 language: go
 
-os:
-  - linux
-  - osx
+dist: xenial
 
 go:
   - 1.x
