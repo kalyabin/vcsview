@@ -69,14 +69,51 @@ func TestNewRepository(t *testing.T) {
 			// check repository object
 			realPath, _ := filepath.Abs(filepath.Clean(testCase.projectPath))
 
-			if repo.ProjectPath != realPath {
-				t.Errorf("[%d] Repository.ProjectPath = %v, want: %v", key, repo.ProjectPath, realPath)
+			if p := repo.ProjectPath(); p != realPath {
+				t.Errorf("[%d] Repository.ProjectPath() = %v, want: %v", key, p, realPath)
 			}
 
 			repoPath, _ := filepath.Abs(filepath.Clean(testCase.projectPath+pathSeparator+testCase.vcs.RepositoryPathname()))
-			if repo.RepositoryPath != repoPath {
-				t.Errorf("[%d] Repository.RepositoryPath = %v, want: %v", key, repo.RepositoryPath, repoPath)
+			if p := repo.RepositoryPath(); p != repoPath {
+				t.Errorf("[%d] Repository.RepositoryPath = %v, want: %v", key, p, repoPath)
 			}
+		}
+	}
+}
+
+func TestReposotyr_AbsPath(t *testing.T) {
+	gitRepoRealPath, _ := filepath.Abs(gitRepositoryPath)
+
+	cases := []struct{
+		projectPath string
+		subDir string
+		expectedAbsPath string
+		gotError bool
+	}{
+		{gitRepoRealPath, "testpath/empty.txt", gitRepoRealPath+pathSeparator+"testpath/empty.txt", false},
+		{gitRepoRealPath, "testpath/../testpath", gitRepoRealPath+pathSeparator+"testpath", false},
+		{gitRepoRealPath, "testpath/../../git", gitRepoRealPath, false},
+		{gitRepoRealPath, "testpath/../../../", gitRepoRealPath, true},
+	}
+
+	for key, testCase := range cases {
+		r := Repository{}
+		r.projectPath = testCase.projectPath
+
+		result, err := r.AbsPath(testCase.subDir)
+		if err != nil && !testCase.gotError {
+			t.Errorf("[%d] Repository.AbsPath(%s) got error: %v, want no errors", key, testCase.subDir, err)
+			continue
+		}
+
+		if err == nil && testCase.gotError {
+			t.Errorf("[%d] Repository.AbsPath(%s) got no errors, want errors", key, testCase.subDir)
+			continue
+		}
+
+		if !testCase.gotError && result != testCase.expectedAbsPath {
+			t.Errorf("[%d] Repository.AbsPath(%s) = %v, want: %v", key, testCase.subDir, result, testCase.expectedAbsPath)
+			continue
 		}
 	}
 }

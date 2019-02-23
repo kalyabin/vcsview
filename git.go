@@ -39,7 +39,7 @@ func (g Git) Version() (string, error) {
 }
 
 // Check project repository
-// ProjectPath is absolute path to project path
+// projectPath is absolute path to project path
 // Returns error if repository not found at provided projectPath
 // Returns nil if repository found
 func (g Git) CheckRepository(projectPath string) error {

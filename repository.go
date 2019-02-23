@@ -13,15 +13,39 @@ type Repository struct {
 	cmd Vcs
 
 	// Project absolute path (not a path to config directory)
-	ProjectPath string
+	projectPath string
+}
 
-	// Repository absolute path (path to config directory, for example, /path/to/project/.git)
-	RepositoryPath string
+// Repository absolute path (path to config directory, for example, /path/to/project/.git)
+func (r Repository) RepositoryPath() string {
+	return r.projectPath+pathSeparator+r.cmd.RepositoryPathname()
+}
+
+// Returns project path (not a path to repository)
+func (r Repository) ProjectPath() string {
+	return r.projectPath
 }
 
 // Get command line interface
 func (r *Repository) Cmd() Vcs {
 	return r.cmd
+}
+
+// Get absolute path of subdir path
+// Returns error if file path out of project path
+func (r Repository) AbsPath(subDir string) (string, error) {
+	path, err := filepath.Abs(r.projectPath +pathSeparator+subDir)
+	if err != nil {
+		return "", err
+	}
+
+	path = filepath.Clean(path)
+
+	if rPath, pPath := []rune(path), []rune(r.projectPath); len(rPath) < len(pPath) || string(rPath[:len(pPath)]) != r.projectPath {
+		return "", fmt.Errorf("Directory %s out of %s", path, r.projectPath)
+	}
+
+	return path, nil
 }
 
 // Get project files list
@@ -30,19 +54,13 @@ func (r *Repository) Cmd() Vcs {
 func (r Repository) FilesList(subDir string) ([]File, error) {
 	var result []File
 
-	path, err := filepath.Abs(r.ProjectPath+pathSeparator+subDir)
+	path, err := r.AbsPath(subDir)
 	if err != nil {
 		return result, err
 	}
 
-	path = filepath.Clean(path)
-
-	if rPath, pPath := []rune(path), []rune(r.ProjectPath); len(rPath) < len(pPath) || string(rPath[:len(pPath)]) != r.ProjectPath {
-		return result, fmt.Errorf("Directory %s out of %s", path, r.ProjectPath)
-	}
-
 	// get relative file path
-	relativePath, _ := filepath.Rel(r.ProjectPath, path)
+	relativePath, _ := filepath.Rel(r.projectPath, path)
 	relativePath = strings.TrimPrefix(relativePath, "."+pathSeparator)
 
 	// seek files
@@ -54,7 +72,7 @@ func (r Repository) FilesList(subDir string) ([]File, error) {
 	result = make([]File, 0)
 
 	for _, i := range files {
-		if i.Name() == r.cmd.RepositoryPathname() {
+		if i.Name() == r.cmd.RepositoryPathname() && subDir == "" {
 			// list doesn't need to provide repository path
 			continue
 		}
@@ -84,8 +102,6 @@ func NewRepository(projectPath string, vcs Vcs) (Repository, error) {
 		return r, err
 	}
 
-	repoPath := projectPath+pathSeparator+vcs.RepositoryPathname()
-
-	r = Repository{vcs, projectPath, repoPath}
+	r = Repository{vcs, projectPath}
 	return r, nil
 }
