@@ -34,7 +34,7 @@ fi
 
 if [ ! -d "$HGREPO" ]; then
 	echo "Clone Mercurial repository to: $HGPATH"
-	hg clone $HGURL $HGPATH
+	hg clone --insecure $HGURL $HGPATH
 fi
 
 ## Installing empty files to check fake repositories
