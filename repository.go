@@ -9,14 +9,19 @@ import (
 
 // Structure which provides access control to some project repository
 type Repository struct {
-	// Command line interfaces for specified version control system
-	Cmd Vcs
+	// Command line interface for specified version control system
+	cmd Vcs
 
 	// Project absolute path (not a path to config directory)
 	ProjectPath string
 
 	// Repository absolute path (path to config directory, for example, /path/to/project/.git)
 	RepositoryPath string
+}
+
+// Get command line interface
+func (r *Repository) Cmd() Vcs {
+	return r.cmd
 }
 
 // Get project files list
@@ -49,7 +54,7 @@ func (r Repository) FilesList(subDir string) ([]File, error) {
 	result = make([]File, 0)
 
 	for _, i := range files {
-		if i.Name() == r.Cmd.RepositoryPathname() {
+		if i.Name() == r.cmd.RepositoryPathname() {
 			// list doesn't need to provide repository path
 			continue
 		}

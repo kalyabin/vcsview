@@ -13,9 +13,9 @@ type Git struct {
 }
 
 // add specific params to execution
-func (g *Git) Execute(dir string, out io.Writer, params ...string) error {
+func (g *Git) execute(dir string, out io.Writer, params ...string) error {
 	params = append([]string{"--no-pager"}, params...)
-	return g.Cli.Execute(dir, out, params...)
+	return g.Cli.execute(dir, out, params...)
 }
 
 // Returns repository settings pathname
@@ -31,7 +31,7 @@ func (g Git) Version() (string, error) {
 
 	buf := new(bytes.Buffer)
 
-	if err := g.Execute(".", buf, "--version"); err != nil {
+	if err := g.execute(".", buf, "--version"); err != nil {
 		return "", err
 	}
 

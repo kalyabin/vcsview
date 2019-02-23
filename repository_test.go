@@ -6,6 +6,22 @@ import (
 	"testing"
 )
 
+func TestRepository_Cmd(t *testing.T) {
+	r := Repository{}
+
+	if cmd := r.Cmd(); cmd != nil {
+		t.Errorf("Repository.Cmd() = %v, want nil", cmd)
+	}
+
+	r.cmd = Git{}
+	cmd := r.Cmd()
+	_, ok := cmd.(Git)
+
+	if !ok {
+		t.Errorf("Repository.Cmd() = %v, want Git{}", cmd)
+	}
+}
+
 func TestNewRepository(t *testing.T) {
 	git := MakeGitMock(t)
 
@@ -114,10 +130,10 @@ func TestRepository_FilesList(t *testing.T) {
 		path, _ = filepath.Abs(path)
 
 		for _, f := range files {
-			expectedPathname := strings.TrimLeft(testCase.expectedSubDir+pathSeparator+f.Name, pathSeparator)
+			expectedPathname := strings.TrimLeft(testCase.expectedSubDir+pathSeparator+f.name, pathSeparator)
 
 			if pathname := f.Pathname(); expectedPathname != pathname {
-				t.Errorf("[%d] Unexpected pathname for file in %s. Want: %s, got: %s", key, path+pathSeparator+f.Name, expectedPathname, pathname)
+				t.Errorf("[%d] Unexpected pathname for file in %s. Want: %s, got: %s", key, path+pathSeparator+f.name, expectedPathname, pathname)
 				continue
 			}
 		}

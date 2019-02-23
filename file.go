@@ -25,22 +25,61 @@ const(
 // Project file with relative path
 type File struct {
 	// File name
-	Name string
+	name string
 
 	// Relative file path
-	Path string
+	path string
 
 	// True if file is directory
-	IsDir bool
+	isDir bool
 
 	// True if file is existent
-	IsExists bool
+	isExists bool
 
 	// File size
-	Size int64
+	size int64
 
-	// File mode
-	Mode os.FileMode
+	// File access mode
+	mode os.FileMode
+}
+
+// Get file name (without file path)
+func (f File) Name() string {
+	return f.name
+}
+
+// Get file relative file path (without file name)
+func (f File) Path() string {
+	return f.path
+}
+
+// Returns relative file path with file name
+func (f File) Pathname() string {
+	if f.path == "" || f.path == pathSeparator {
+		return f.name
+	}
+
+	return strings.TrimLeft(f.path+pathSeparator+f.name, pathSeparator)
+}
+
+// Returns true if file is directory
+func (f File) IsDir() bool {
+	return f.isDir
+}
+
+// Returns true if file is exists at the time
+func (f File) IsExists() bool {
+	return f.isExists
+}
+
+// Returns file bytes size
+func (f File) Size() int64 {
+	return f.size
+}
+
+// Returns permissions for the file
+func (f File) Mode() os.FileMode {
+	return f.mode
 }
 
 // Create new file for project repository list
@@ -53,13 +92,4 @@ func NewFileFromProjectList(i os.FileInfo, relativePath string) File {
 
 	f := File{i.Name(), relativePath, i.IsDir(), true, i.Size(), i.Mode()}
 	return f
-}
-
-// Returns relative file path with file name
-func (f File) Pathname() string {
-	if f.Path == "" || f.Path == pathSeparator {
-		return f.Name
-	}
-
-	return strings.TrimLeft(f.Path+pathSeparator+f.Name, pathSeparator)
 }

@@ -7,7 +7,7 @@ import (
 func MakeGitMockWithCmd(cmd string, t *testing.T) Git {
 	g := Git{
 		Cli{
-			Cmd: cmd,
+			cmd: cmd,
 			Debugger: DebugFunc(func(msg string) {
 				t.Log(msg)
 			}),
