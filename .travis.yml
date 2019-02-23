@@ -10,8 +10,8 @@ go:
   - 1.11.x
   - master
 
-before_install:
-  - test_install.sh
+install:
+  - sh ./test_install.sh
 
 script:
   go test -v -cover
