@@ -1,6 +1,7 @@
 package vcsview
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"regexp"
 )
 
+// CLI wrapper for GIT
 type Git struct {
 	Cli
 }
@@ -68,4 +70,41 @@ func (g Git) StatusRepository(projectPath string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// Fetch repository branches
+// ProjectPath is the absolute path to project with Git repository
+func (g Git) GetBranches(projectPath string) ([]Branch, error) {
+	var result []Branch
+
+	buf := new(bytes.Buffer)
+
+	err := g.execute(projectPath, buf, "branch", "-a", "-v")
+
+	if err != nil {
+		return result, err
+	}
+
+	// pattern to read branches line by line
+	pattern := regexp.MustCompile(`^\*?[\s+|\t]+(?P<id>[^\s]+)[\s+|\t]+(?P<head>[a-fA-F0-9]+)[\s+|\t]+(?P<message>.*)$`)
+
+	scanner := bufio.NewScanner(buf)
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+
+		if !pattern.Match(line) {
+			continue
+		}
+
+		matches := pattern.FindSubmatch(line)
+
+		isCurrent := string(line[:1]) == "*"
+		id := string(matches[1])
+		head := string(matches[2])
+
+		result = append(result, Branch{id, head, isCurrent})
+	}
+
+	return result, nil
 }

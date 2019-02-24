@@ -209,3 +209,83 @@ func TestRepository_Check(t *testing.T) {
 		}
 	}
 }
+
+func TestRepository_GetBranchesFail(t *testing.T) {
+	git := MakeGitMock(t)
+
+	cases := []struct{
+		vcs Vcs
+		path string
+	}{
+		{git, hgRepositoryPath},
+		{git, noRepositoryPath},
+	}
+
+	for key, testCase := range cases {
+		r := Repository{}
+		r.projectPath = testCase.path
+		r.cmd = testCase.vcs
+
+		result, err := r.GetBranches()
+
+		if err == nil || len(result) != 0 {
+			t.Errorf("[%d] Git.GetBranches(%s) = %v, %v, want error", key, testCase, result, err)
+		}
+	}
+}
+
+func TestRepository_GetBranchesOk(t *testing.T) {
+	git := MakeGitMock(t)
+
+	cases := []struct{
+		vcs Vcs
+		path string
+		expectedBranches []string
+	}{
+		{git, gitRepositoryPath, expectedGitBranches},
+	}
+
+	for key, testCase := range cases {
+		r := Repository{}
+		r.projectPath = testCase.path
+		r.cmd = testCase.vcs
+
+		branches, err := r.GetBranches()
+
+		if err != nil {
+			t.Errorf("[%d] Repository.GetBranches() = %v, %v, want no errors", key, branches, err)
+		}
+
+		if len(branches) != len(testCase.expectedBranches) {
+			t.Errorf("[%d] Repository.GetBranches() = %v, %v, want %d branches", key, branches, err, len(testCase.expectedBranches))
+		}
+
+		gotBranches := 0
+		gotCurrent := false
+
+		for key, branch := range branches {
+			if branch.Id() == "" {
+				t.Errorf("Branch %d got empty identifier", key)
+			}
+			if branch.Head() == "" {
+				t.Errorf("Branch %d got empty head commit", key)
+			}
+			if branch.IsCurrent() {
+				gotCurrent = true
+			}
+			for _, expectedBranch := range testCase.expectedBranches {
+				if branch.Id() == expectedBranch {
+					gotBranches++
+				}
+			}
+		}
+
+		if gotBranches != len(testCase.expectedBranches) {
+			t.Errorf("[%d] Repository.GetBranches() doesnt contain expected branches: %v", key, testCase.expectedBranches)
+		}
+
+		if !gotCurrent {
+			t.Errorf("[%d] Repository.GetBranches() doesnt contain current branch", key)
+		}
+	}
+}

@@ -17,4 +17,7 @@ type Vcs interface {
 	// Fetch repository current status
 	// Returns error if the repository doesn't exists at specified path
 	StatusRepository(projectPath string) (string, error)
+
+	// Fetch repository branches
+	GetBranches(projectPath string) ([]Branch, error)
 }

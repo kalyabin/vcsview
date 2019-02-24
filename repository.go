@@ -90,6 +90,11 @@ func (r Repository) Check() (err error) {
 	return
 }
 
+// Get repository branches
+func (r Repository) GetBranches() ([]Branch, error) {
+	return r.cmd.GetBranches(r.projectPath)
+}
+
 // Create new repository object for the project path and provided version control system
 // Returns error if repository not found at the path
 // Returns repository object if repository found at the path

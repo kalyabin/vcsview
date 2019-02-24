@@ -13,6 +13,10 @@ const (
 	hgRepositoryPath = "testdata"+pathSeparator+"hg"
 )
 
+var (
+	expectedGitBranches = []string{"master", "remotes/origin/branch1", "remotes/origin/branch2", "remotes/origin/master"}
+)
+
 // Check testing repository
 // repoType - string identifier of repository type (hg, git)
 // repoPath - path of repository (not a .git or .hg path)

@@ -77,3 +77,64 @@ func TestGit_CheckRepository(t *testing.T) {
 		}
 	}
 }
+
+func TestGit_GetBranchesFail(t *testing.T) {
+	 g := MakeGitMock(t)
+
+	 cases := []string{
+	 	hgRepositoryPath,
+	 	noRepositoryPath,
+	 }
+
+	 for key, testCase := range cases {
+	 	result, err := g.GetBranches(testCase)
+
+	 	if err == nil || len(result) != 0 {
+	 		t.Errorf("[%d] Git.GetBranches(%s) = %v, %v, want error", key, testCase, result, err)
+		}
+	 }
+}
+
+func TestGit_GetBranchesOk(t *testing.T) {
+	g := MakeGitMock(t)
+
+	projectPath := gitRepositoryPath
+
+	branches, err := g.GetBranches(projectPath)
+
+	if err != nil {
+		t.Errorf("Git.GetBranches(%s) = %v, %v, want no errors", projectPath, branches, err)
+	}
+
+	if len(branches) != len(expectedGitBranches) {
+		t.Errorf("Git.GetBranches(%s) = %v, %v, want %d branches", projectPath, branches, err, len(expectedGitBranches))
+	}
+
+	gotBranches := 0
+	gotCurrent := false
+
+	for key, branch := range branches {
+		if branch.Id() == "" {
+			t.Errorf("Branch %d got empty identifier", key)
+		}
+		if branch.Head() == "" {
+			t.Errorf("Branch %d got empty head commit", key)
+		}
+		if branch.IsCurrent() {
+			gotCurrent = true
+		}
+		for _, expectedBranch := range expectedGitBranches {
+			if branch.Id() == expectedBranch {
+				gotBranches++
+			}
+		}
+	}
+
+	if gotBranches != len(expectedGitBranches) {
+		t.Errorf("Git.GetBranches(%s) doesnt contain expected branches: %v", projectPath, expectedGitBranches)
+	}
+
+	if !gotCurrent {
+		t.Errorf("Git.GetBranches(%s) doesnt contain current branch", projectPath)
+	}
+}
