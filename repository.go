@@ -83,6 +83,13 @@ func (r Repository) FilesList(subDir string) ([]File, error) {
 	return result, nil
 }
 
+// Check the repository
+// Repository exists and well works if the vcs doesnt throw an error while fetch repository status
+func (r Repository) Check() (err error) {
+	_, err = r.cmd.StatusRepository(r.projectPath)
+	return
+}
+
 // Create new repository object for the project path and provided version control system
 // Returns error if repository not found at the path
 // Returns repository object if repository found at the path

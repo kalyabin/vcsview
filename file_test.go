@@ -2,7 +2,6 @@ package vcsview
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -130,7 +129,7 @@ func TestFile_Mode(t *testing.T) {
 }
 
 func TestNewFileFromProjectList(t *testing.T) {
-	testingPath, _ := filepath.Abs(gitRepositoryPath)
+	testingPath := gitRepoRealPath
 
 	cases := []struct{
 		relativePath string
@@ -175,6 +174,31 @@ func TestNewFileFromProjectList(t *testing.T) {
 
 		if file.mode != stat.Mode() {
 			t.Errorf("[%d] file.mode for %s got: %v, want: %v", key, absPath, file.mode, stat.Mode())
+		}
+	}
+}
+
+func TestGit_StatusRepository(t *testing.T) {
+	git := MakeGitMock(t)
+
+	cases := []struct{
+		projectPath string
+		gotError bool
+	}{
+		{gitRepoRealPath, false},
+		{hgRepoRealPath, true},
+		{noRepoRealPath, true},
+	}
+
+	for key, testCase := range cases {
+		result, err := git.StatusRepository(testCase.projectPath)
+
+		if err != nil && !testCase.gotError {
+			t.Errorf("[%d] Git.StatusRepository(%s) = %v, %v, want no errors", key, testCase.projectPath, result, err)
+		}
+
+		if err == nil && testCase.gotError {
+			t.Errorf("[%d] Git.StatusRepository(%s) = %v, nil, want errors", key, testCase.projectPath, result)
 		}
 	}
 }

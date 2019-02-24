@@ -13,4 +13,8 @@ type Vcs interface {
 	// Returns error if repository not found at provided projectPath
 	// Returns nil if repository found
 	CheckRepository(projectPath string) error
+
+	// Fetch repository current status
+	// Returns error if the repository doesn't exists at specified path
+	StatusRepository(projectPath string) (string, error)
 }

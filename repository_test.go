@@ -6,6 +6,12 @@ import (
 	"testing"
 )
 
+var (
+	gitRepoRealPath, _ = filepath.Abs(gitRepositoryPath)
+	hgRepoRealPath, _ = filepath.Abs(hgRepositoryPath)
+	noRepoRealPath, _ = filepath.Abs(noRepositoryPath)
+)
+
 func TestRepository_Cmd(t *testing.T) {
 	r := Repository{}
 
@@ -24,10 +30,6 @@ func TestRepository_Cmd(t *testing.T) {
 
 func TestNewRepository(t *testing.T) {
 	git := MakeGitMock(t)
-
-	gitRepoRealPath, _ := filepath.Abs(gitRepositoryPath)
-	hgRepoRealPath, _ := filepath.Abs(hgRepositoryPath)
-	noRepoRealPath, _ := filepath.Abs(noRepositoryPath)
 
 	cases := []struct{
 		projectPath string
@@ -176,4 +178,34 @@ func TestRepository_FilesList(t *testing.T) {
 		}
 	}
 
+}
+
+func TestRepository_Check(t *testing.T) {
+	git := MakeGitMock(t)
+
+	cases := []struct{
+		projectPath string
+		vcs Vcs
+		gotError bool
+	}{
+		{gitRepoRealPath, git, false},
+		{hgRepoRealPath, git, true},
+		{noRepoRealPath, git, true},
+	}
+
+	for key, testCase := range cases {
+		r := Repository{}
+		r.cmd = testCase.vcs
+		r.projectPath = testCase.projectPath
+
+		err := r.Check()
+
+		if err != nil && !testCase.gotError {
+			t.Errorf("[%d] Repository.Check() = %v, want no errors", key, err)
+		}
+
+		if err == nil && testCase.gotError {
+			t.Errorf("[%d] Repository.Check() = nil, want errors", key)
+		}
+	}
 }

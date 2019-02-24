@@ -57,3 +57,15 @@ func (g Git) CheckRepository(projectPath string) error {
 
 	return nil
 }
+
+// Check the repository status
+// Throws an error if repository doesnt exists at the path
+func (g Git) StatusRepository(projectPath string) (string, error) {
+	buf := new(bytes.Buffer)
+
+	if err := g.execute(projectPath, buf, "status", "--short"); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
