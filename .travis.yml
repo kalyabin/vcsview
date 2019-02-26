@@ -9,7 +9,7 @@ go:
   - master
 
 install:
-  - sh ./test_install.sh
+  - sh ./testdata/install.sh
 
 script:
   go test -v -cover
