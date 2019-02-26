@@ -91,8 +91,8 @@ func (r Repository) Check() (err error) {
 }
 
 // Get repository branches
-func (r Repository) GetBranches() ([]Branch, error) {
-	return r.cmd.GetBranches(r.projectPath)
+func (r Repository) GetBranches(result chan Branch, err chan error) {
+	r.cmd.GetBranches(r.projectPath, result, err)
 }
 
 // Create new repository object for the project path and provided version control system

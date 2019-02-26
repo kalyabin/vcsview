@@ -1,6 +1,7 @@
 package vcsview
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -86,28 +87,90 @@ func TestGit_GetBranchesFail(t *testing.T) {
 	 	noRepositoryPath,
 	 }
 
-	 for key, testCase := range cases {
-	 	result, err := g.GetBranches(testCase)
+	for key, testCase := range cases {
+		var (
+			result chan Branch
+			err chan error
+			gotError bool
+			gotBranches int
+		)
 
-	 	if err == nil || len(result) != 0 {
-	 		t.Errorf("[%d] Git.GetBranches(%s) = %v, %v, want error", key, testCase, result, err)
+		result = make(chan Branch)
+		err = make(chan error)
+
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+
+			for range err {
+				gotError = true
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			for range result {
+				gotBranches++
+			}
+		}()
+
+		g.GetBranches(testCase, result, err)
+
+		wg.Wait()
+
+		if !gotError {
+			t.Errorf("[%d] Git.GetBranches(%s, ...) has no errors, want error", key, testCase)
+		}
+
+		if gotBranches > 0 {
+			t.Errorf("[%d] Git.GetBranches(%s, ...) got %v branches, want: 0", key, testCase, gotBranches)
 		}
 	 }
 }
 
+
 func TestGit_GetBranchesOk(t *testing.T) {
 	g := MakeGitMock(t)
 
+	var gotError error = nil
+	branches := make([]Branch, 0)
+	result := make(chan Branch)
+	err := make(chan error)
+
 	projectPath := gitRepositoryPath
 
-	branches, err := g.GetBranches(projectPath)
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
 
-	if err != nil {
-		t.Errorf("Git.GetBranches(%s) = %v, %v, want no errors", projectPath, branches, err)
+	go func() {
+		defer wg.Done()
+
+		for e := range err {
+			gotError = e
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for branch := range result {
+			branches = append(branches, branch)
+		}
+	}()
+
+	g.GetBranches(projectPath, result, err)
+
+	wg.Wait()
+
+	if gotError != nil {
+		t.Errorf("Git.GetBranches(%s) = %v, %v, want no errors", projectPath, branches, gotError)
 	}
 
 	if len(branches) != len(expectedGitBranches) {
-		t.Errorf("Git.GetBranches(%s) = %v, %v, want %d branches", projectPath, branches, err, len(expectedGitBranches))
+		t.Errorf("Git.GetBranches(%s) = %v, %v, want %d branches", projectPath, branches, gotError, len(expectedGitBranches))
 	}
 
 	gotBranches := 0

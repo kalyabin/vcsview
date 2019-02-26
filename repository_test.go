@@ -3,6 +3,7 @@ package vcsview
 import (
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -226,10 +227,45 @@ func TestRepository_GetBranchesFail(t *testing.T) {
 		r.projectPath = testCase.path
 		r.cmd = testCase.vcs
 
-		result, err := r.GetBranches()
+		var (
+			result chan Branch
+			err chan error
+			gotError bool
+			gotBranches int
+		)
 
-		if err == nil || len(result) != 0 {
-			t.Errorf("[%d] Git.GetBranches(%s) = %v, %v, want error", key, testCase, result, err)
+		result = make(chan Branch)
+		err = make(chan error)
+
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+
+			for range err {
+				gotError = true
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			for range result {
+				gotBranches++
+			}
+		}()
+
+		r.GetBranches(result, err)
+
+		wg.Wait()
+
+		if !gotError {
+			t.Errorf("[%d] Repository.GetBranches(...) for %s has no errors, want error", key, testCase)
+		}
+
+		if gotBranches > 0 {
+			t.Errorf("[%d] Repository.GetBranches(...) for %s got %v branches, want: 0", key, testCase, gotBranches)
 		}
 	}
 }
@@ -250,14 +286,40 @@ func TestRepository_GetBranchesOk(t *testing.T) {
 		r.projectPath = testCase.path
 		r.cmd = testCase.vcs
 
-		branches, err := r.GetBranches()
+		var gotError error = nil
+		branches := make([]Branch, 0)
+		result := make(chan Branch)
+		err := make(chan error)
 
-		if err != nil {
-			t.Errorf("[%d] Repository.GetBranches() = %v, %v, want no errors", key, branches, err)
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+
+			for e := range err {
+				gotError = e
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			for branch := range result {
+				branches = append(branches, branch)
+			}
+		}()
+
+		r.GetBranches(result, err)
+
+		wg.Wait()
+
+		if gotError != nil {
+			t.Errorf("Repository.GetBranches(...) = %v, %v, want no errors", branches, gotError)
 		}
 
 		if len(branches) != len(testCase.expectedBranches) {
-			t.Errorf("[%d] Repository.GetBranches() = %v, %v, want %d branches", key, branches, err, len(testCase.expectedBranches))
+			t.Errorf("Repository.GetBranches(...) = %v, %v, want %d branches", branches, gotError, len(expectedGitBranches))
 		}
 
 		gotBranches := 0
@@ -281,11 +343,11 @@ func TestRepository_GetBranchesOk(t *testing.T) {
 		}
 
 		if gotBranches != len(testCase.expectedBranches) {
-			t.Errorf("[%d] Repository.GetBranches() doesnt contain expected branches: %v", key, testCase.expectedBranches)
+			t.Errorf("[%d] Repository.GetBranches(...) doesnt contain expected branches: %v", key, testCase.expectedBranches)
 		}
 
 		if !gotCurrent {
-			t.Errorf("[%d] Repository.GetBranches() doesnt contain current branch", key)
+			t.Errorf("[%d] Repository.GetBranches(...) doesnt contain current branch", key)
 		}
 	}
 }

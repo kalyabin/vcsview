@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sync"
 )
 
 // CLI wrapper for GIT
@@ -72,39 +73,47 @@ func (g Git) StatusRepository(projectPath string) (string, error) {
 	return buf.String(), nil
 }
 
-// Fetch repository branches
+// Fetch repository branches asynchronously
 // ProjectPath is the absolute path to project with Git repository
-func (g Git) GetBranches(projectPath string) ([]Branch, error) {
-	var result []Branch
-
-	buf := new(bytes.Buffer)
-
-	err := g.execute(projectPath, buf, "branch", "-a", "-v")
-
-	if err != nil {
-		return result, err
-	}
+func (g Git) GetBranches(projectPath string, result chan Branch, err chan error) {
+	cmd := g.createCommand(projectPath, "branch", "-a", "-v")
 
 	// pattern to read branches line by line
 	pattern := regexp.MustCompile(`^\*?[\s+|\t]+(?P<id>[^\s]+)[\s+|\t]+(?P<head>[a-fA-F0-9]+)[\s+|\t]+(?P<message>.*)$`)
 
-	scanner := bufio.NewScanner(buf)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 
-	for scanner.Scan() {
-		line := scanner.Bytes()
+	reader := readerFunc(func(s *bufio.Scanner) {
+		defer wg.Done()
 
-		if !pattern.Match(line) {
-			continue
+		for s.Scan() {
+			line := s.Bytes()
+
+			if !pattern.Match(line) {
+				continue
+			}
+
+			matches := pattern.FindSubmatch(line)
+
+			isCurrent := string(line[:1]) == "*"
+			id := string(matches[1])
+			head := string(matches[2])
+
+			result <- Branch{id, head, isCurrent}
 		}
+	})
 
-		matches := pattern.FindSubmatch(line)
+	errHandler := g.chanErrHandler(err)
 
-		isCurrent := string(line[:1]) == "*"
-		id := string(matches[1])
-		head := string(matches[2])
+	executor := g.executePipe(cmd, reader, errHandler)
 
-		result = append(result, Branch{id, head, isCurrent})
-	}
+	go func() {
+		executor()
 
-	return result, nil
+		wg.Wait()
+
+		close(result)
+		close(err)
+	}()
 }
