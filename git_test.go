@@ -109,7 +109,7 @@ func TestGit_ReadBranchesFail(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			gotError = g.ReadBranches(testCase, result).Start() != nil
+			gotError = g.ReadBranches(testCase, result).Run() != nil
 		}()
 
 		wg.Wait()
@@ -147,7 +147,7 @@ func TestGit_ReadBranchesOk(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		err = g.ReadBranches(projectPath, result).Start()
+		err = g.ReadBranches(projectPath, result).Run()
 	}()
 
 	wg.Wait()
@@ -222,7 +222,7 @@ func TestGit_ReadCommitFail(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			gotError = g.ReadCommit(testCase.repoPath, testCase.commitId, result).Start() != nil
+			gotError = g.ReadCommit(testCase.repoPath, testCase.commitId, result).Run() != nil
 		}()
 
 		wg.Wait()
@@ -259,7 +259,7 @@ func TestGit_ReadCommitOk(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		err = g.ReadCommit(testCase.repoPath, testCase.commitId, result).Start()
+		err = g.ReadCommit(testCase.repoPath, testCase.commitId, result).Run()
 	}()
 
 	wg.Wait()

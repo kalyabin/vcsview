@@ -1,53 +1,24 @@
 package vcsview
 
 import (
+	"strings"
 	"testing"
 )
 
-func TestCli_Log(t *testing.T) {
-	var (
-		c = Cli{"git", nil}
-		gotMessage = ""
-		wantMessage = "testing message"
-	)
+func TestCli_Command(t *testing.T) {
+	c := Cli{}
 	c.cmd = "git"
 
-	c.Debugger = DebugFunc(func(msg string) {
-		gotMessage = msg
-	})
+	wantArgs := "git --version"
+	wantDir := gitRepoRealPath
 
-	c.log(wantMessage)
+	cmd := c.command(gitRepoRealPath, "--version")
 
-	if gotMessage != wantMessage {
-		t.Fatalf("Cli.log(%s) doesn't call Debugger function", wantMessage)
+	if dir := cmd.Dir; dir != wantDir {
+		t.Errorf("Cli.CreateCommand(%s, %s).Dir = %v, want: %v", gitRepoRealPath, "--version", dir, wantDir)
+	}
+
+	if args := strings.Join(cmd.Args, " "); args != wantArgs {
+		t.Errorf("Cli.CreateCommand(%s, %s).Args = %v, want: %v", gitRepoRealPath, "--version", args, wantArgs)
 	}
 }
-
-func TestCli_LogCmdNonZeroStatus(t *testing.T) {
-	cases := []struct{
-		cmd string
-		args []string
-		message string
-		err error
-	}{
-		{"git", []string{"log"}, "Command git log finished with non-zero status code", nil},
-	}
-
-	// test with some exited status
-	for _, v := range cases {
-		gotMessage := ""
-		debugger := DebugFunc(func(msg string) {
-			gotMessage = msg
-		})
-		c := Cli{"git", debugger}
-
-		cmd := c.createCommand(".", v.args...)
-
-		c.logCmdNonZeroStatus(cmd, v.err)
-
-		if gotMessage != v.message {
-			t.Errorf("Cli.logCmdNonZeroStatus(%v) want: %v, got: %v", v.message, v.message, gotMessage)
-		}
-	}
-}
-

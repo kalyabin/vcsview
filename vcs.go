@@ -21,13 +21,13 @@ type Vcs interface {
 	// Create the command which reads branches from repository
 	// ProjectPath is a path to project with VCS
 	// Result is a channel, which get branches line-by-line
-	// To start read run executor Start method
+	// To start read run executor Run method
 	ReadBranches(projectPath string, result chan Branch) *Executor
 
 	// Create the command whic reads commit from repository by commit id
 	// ProjectPath is a path to project with VCS
 	// CommitId is a commit identifier
 	// Result is a channel, whic get commit result
-	// To start read run executor Start method
+	// To start read run executor Run method
 	ReadCommit(projecPath string, commitId string, result chan Commit) *Executor
 }

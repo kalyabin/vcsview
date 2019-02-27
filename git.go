@@ -22,7 +22,7 @@ type Git struct {
 
 // add specific params to command
 func (g *Git) createCommand(dir string, params ...string) *exec.Cmd {
-	return g.Cli.createCommand(dir, append([]string{"--no-pager"}, params...)...)
+	return g.Cli.command(dir, append([]string{"--no-pager"}, params...)...)
 }
 
 // Returns repository settings pathname
@@ -50,9 +50,9 @@ func (g Git) Version() (string, error) {
 		done <- struct{}{}
 	})
 
-	e := NewExecutor(&g.Cli, cmd, reader)
+	e := g.executor(cmd, reader)
 
-	err := e.Start()
+	err := e.Run()
 
 	<- done
 
@@ -98,9 +98,9 @@ func (g Git) StatusRepository(projectPath string) (string, error) {
 		done <- struct{}{}
 	})
 
-	e := NewExecutor(&g.Cli, cmd, reader)
+	e := g.executor(cmd, reader)
 
-	err := e.Start()
+	err := e.Run()
 
 	return result, err
 }
@@ -132,7 +132,7 @@ func (g Git) ReadBranches(projectPath string, result chan Branch) *Executor {
 		}
 	})
 
-	return NewExecutor(&g.Cli, cmd, reader)
+	return g.executor(cmd, reader)
 }
 
 // Fetch repository commit by identifier asynchronously
@@ -172,5 +172,5 @@ func (g Git) ReadCommit(projectPath string, commitId string, result chan Commit)
 		}
 	})
 
-	return NewExecutor(&g.Cli, cmd, reader)
+	return g.executor(cmd, reader)
 }
