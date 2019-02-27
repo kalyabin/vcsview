@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"sync"
 )
 
 // CLI wrapper for GIT
@@ -75,26 +74,24 @@ func (g Git) StatusRepository(projectPath string) (string, error) {
 
 // Fetch repository branches asynchronously
 // ProjectPath is the absolute path to project with Git repository
-func (g Git) GetBranches(projectPath string, result chan Branch, err chan error) {
-	cmd := g.createCommand(projectPath, "branch", "-a", "-v")
-
+func (g Git) ReadBranches(projectPath string, result chan Branch) *Executor {
 	// pattern to read branches line by line
-	pattern := regexp.MustCompile(`^\*?[\s+|\t]+(?P<id>[^\s]+)[\s+|\t]+(?P<head>[a-fA-F0-9]+)[\s+|\t]+(?P<message>.*)$`)
+	p := regexp.MustCompile(`^\*?[\s+|\t]+(?P<id>[^\s]+)[\s+|\t]+(?P<head>[a-fA-F0-9]+)[\s+|\t]+(?P<message>.*)$`)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	e := new(Executor)
 
-	reader := readerFunc(func(s *bufio.Scanner) {
-		defer wg.Done()
+	e.cmd = g.createCommand(projectPath, "branch", "-a", "-v")
+	e.reader = cmdReaderFunc(func(s *bufio.Scanner) {
+		defer close(result)
 
 		for s.Scan() {
 			line := s.Bytes()
 
-			if !pattern.Match(line) {
+			if !p.Match(line) {
 				continue
 			}
 
-			matches := pattern.FindSubmatch(line)
+			matches := p.FindSubmatch(line)
 
 			isCurrent := string(line[:1]) == "*"
 			id := string(matches[1])
@@ -104,16 +101,5 @@ func (g Git) GetBranches(projectPath string, result chan Branch, err chan error)
 		}
 	})
 
-	errHandler := g.chanErrHandler(err)
-
-	executor := g.executePipe(cmd, reader, errHandler)
-
-	go func() {
-		executor()
-
-		wg.Wait()
-
-		close(result)
-		close(err)
-	}()
+	return e
 }

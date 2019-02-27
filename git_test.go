@@ -79,66 +79,55 @@ func TestGit_CheckRepository(t *testing.T) {
 	}
 }
 
-func TestGit_GetBranchesFail(t *testing.T) {
-	 g := MakeGitMock(t)
+func TestGit_ReadBranchesFail(t *testing.T) {
+	g := MakeGitMock(t)
 
-	 cases := []string{
-	 	hgRepositoryPath,
-	 	noRepositoryPath,
-	 }
+	cases := []string{
+		hgRepositoryPath,
+		noRepositoryPath,
+	}
 
 	for key, testCase := range cases {
 		var (
 			result chan Branch
-			err chan error
 			gotError bool
 			gotBranches int
 		)
 
 		result = make(chan Branch)
-		err = make(chan error)
 
-		wg := &sync.WaitGroup{}
+		wg := sync.WaitGroup{}
 		wg.Add(2)
-
 		go func() {
 			defer wg.Done()
-
-			for range err {
-				gotError = true
-			}
-		}()
-
-		go func() {
-			defer wg.Done()
-
 			for range result {
 				gotBranches++
 			}
 		}()
 
-		g.GetBranches(testCase, result, err)
+		go func() {
+			defer wg.Done()
+
+			gotError = g.ReadBranches(testCase, result).Start() != nil
+		}()
 
 		wg.Wait()
 
 		if !gotError {
-			t.Errorf("[%d] Git.GetBranches(%s, ...) has no errors, want error", key, testCase)
+			t.Errorf("[%d] Git.ReadBranches(%s, ...) has no errors, want error", key, testCase)
 		}
 
 		if gotBranches > 0 {
-			t.Errorf("[%d] Git.GetBranches(%s, ...) got %v branches, want: 0", key, testCase, gotBranches)
+			t.Errorf("[%d] Git.ReadBranches(%s, ...) got %v branches, want: 0", key, testCase, gotBranches)
 		}
-	 }
+	}
 }
 
-
-func TestGit_GetBranchesOk(t *testing.T) {
+func TestGit_ReadBranchesOk(t *testing.T) {
 	g := MakeGitMock(t)
 
-	var gotError error = nil
 	branches := make([]Branch, 0)
 	result := make(chan Branch)
-	err := make(chan error)
 
 	projectPath := gitRepositoryPath
 
@@ -148,29 +137,26 @@ func TestGit_GetBranchesOk(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		for e := range err {
-			gotError = e
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-
 		for branch := range result {
 			branches = append(branches, branch)
 		}
 	}()
 
-	g.GetBranches(projectPath, result, err)
+	var err error
+	go func() {
+		defer wg.Done()
+
+		err = g.ReadBranches(projectPath, result).Start()
+	}()
 
 	wg.Wait()
 
-	if gotError != nil {
-		t.Errorf("Git.GetBranches(%s) = %v, %v, want no errors", projectPath, branches, gotError)
+	if err != nil {
+		t.Errorf("Git.ReadBranches(%s) = %v, %v, want no errors", projectPath, branches, err)
 	}
 
 	if len(branches) != len(expectedGitBranches) {
-		t.Errorf("Git.GetBranches(%s) = %v, %v, want %d branches", projectPath, branches, gotError, len(expectedGitBranches))
+		t.Errorf("Git.ReadBranches(%s) = %v, %v, want %d branches", projectPath, branches, err, len(expectedGitBranches))
 	}
 
 	gotBranches := 0
@@ -194,10 +180,10 @@ func TestGit_GetBranchesOk(t *testing.T) {
 	}
 
 	if gotBranches != len(expectedGitBranches) {
-		t.Errorf("Git.GetBranches(%s) doesnt contain expected branches: %v", projectPath, expectedGitBranches)
+		t.Errorf("Git.ReadBranches(%s) doesnt contain expected branches: %v", projectPath, expectedGitBranches)
 	}
 
 	if !gotCurrent {
-		t.Errorf("Git.GetBranches(%s) doesnt contain current branch", projectPath)
+		t.Errorf("Git.ReadBranches(%s) doesnt contain current branch", projectPath)
 	}
 }

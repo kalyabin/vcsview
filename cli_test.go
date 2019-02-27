@@ -28,10 +28,11 @@ func TestCli_Log(t *testing.T) {
 func TestCli_LogCmdNonZeroStatus(t *testing.T) {
 	cases := []struct{
 		cmd string
+		args []string
 		message string
 		err error
 	}{
-		{"git log", "Command git log finished with non-zero status code", nil},
+		{"git", []string{"log"}, "Command git log finished with non-zero status code", nil},
 	}
 
 	// test with some exited status
@@ -41,30 +42,13 @@ func TestCli_LogCmdNonZeroStatus(t *testing.T) {
 			gotMessage = msg
 		})
 		c := Cli{"git", debugger}
-		c.logCmdNonZeroStatus(v.cmd, v.err)
+
+		cmd := c.createCommand(".", v.args...)
+
+		c.logCmdNonZeroStatus(cmd, v.err)
+
 		if gotMessage != v.message {
 			t.Errorf("Cli.logCmdNonZeroStatus(%v) want: %v, got: %v", v.message, v.message, gotMessage)
-		}
-	}
-}
-
-func TestCli_BuildCommandStr(t *testing.T) {
-	cases := []struct{
-		params []string
-		result string
-	}{
-		{[]string{""}, "git"},
-		{[]string{"log"}, "git log"},
-		{[]string{"log --limit=5"}, "git log --limit=5"},
-		{[]string{"log", "--limit=5"}, "git log --limit=5"},
-		{[]string{"log", "-n", "5"}, "git log -n 5"},
-	}
-
-	for _, v := range cases {
-		c := Cli{"git", nil}
-
-		if result := c.buildCommandStr(v.params...); result != v.result {
-			t.Errorf("Cli.buildCommandStr(%#v) = %v, want: %v", v.params, result, v.result)
 		}
 	}
 }

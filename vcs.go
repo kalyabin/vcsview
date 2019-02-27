@@ -18,6 +18,9 @@ type Vcs interface {
 	// Returns error if the repository doesn't exists at specified path
 	StatusRepository(projectPath string) (string, error)
 
-	// Fetch repository branches asynchronously
-	GetBranches(projectPath string, result chan Branch, err chan error)
+	// Create the command which reads branches from repository
+	// ProjectPath is a path to project with VCS
+	// Result is a channel, which get branches line-by-line
+	// To start read run executor Start method
+	ReadBranches(projectPath string, result chan Branch) *Executor
 }
