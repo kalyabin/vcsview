@@ -7,6 +7,13 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
+	"time"
+)
+
+const (
+	gitLogFormat = "%H%n%P%n%an%n%ae%n%ad%n%s%n"
+	gitLogDateLayout = "Mon Jan 2 15:04:05 2006 -0700"
 )
 
 // CLI wrapper for GIT
@@ -98,6 +105,48 @@ func (g Git) ReadBranches(projectPath string, result chan Branch) *Executor {
 			head := string(matches[2])
 
 			result <- Branch{id, head, isCurrent}
+		}
+	})
+
+	return e
+}
+
+// Fetch repository commit by identifier asynchronously
+// ProjectPath is the absolute path to project with Git repository
+// CommitId is the sha256 commit identifier (or short copy)
+func (g Git) ReadCommit(projectPath string, commitId string, result chan Commit) *Executor {
+	e := new(Executor)
+
+	e.cmd = g.createCommand(projectPath, "show", "--quiet", commitId, `--pretty=format:`+gitLogFormat)
+	e.reader = cmdReaderFunc(func(s *bufio.Scanner) {
+		defer close(result)
+
+		data := make([]string, 6)
+		key := 0
+
+		for s.Scan() {
+			data[key] = s.Text()
+			key++
+
+			if key == 6 {
+				time, _ := time.Parse(gitLogDateLayout, data[4])
+
+				commit := Commit{
+					id: data[0],
+					parents: strings.Split(data[1], " "),
+					author: Contributor{
+						name: data[2],
+						email: data[3],
+					},
+					date: time,
+					message: data[5],
+				}
+
+				result <- commit
+
+				key = 0
+				data = make([]string, 6)
+			}
 		}
 	})
 

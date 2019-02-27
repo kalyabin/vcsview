@@ -1,6 +1,7 @@
 package vcsview
 
 import (
+	"strings"
 	"sync"
 	"testing"
 )
@@ -185,5 +186,112 @@ func TestGit_ReadBranchesOk(t *testing.T) {
 
 	if !gotCurrent {
 		t.Errorf("Git.ReadBranches(%s) doesnt contain current branch", projectPath)
+	}
+}
+
+func TestGit_ReadCommitFail(t *testing.T) {
+	g := MakeGitMock(t)
+
+	cases := []struct{
+		repoPath string
+		commitId string
+	}{
+		{hgRepositoryPath, "xxx"},
+		{gitRepositoryPath, "xxx"},
+		{hgRepositoryPath, gitReadCommitTestCase.commitId},
+	}
+
+	for key, testCase := range cases {
+		var (
+			result chan Commit
+			gotError bool
+			gotCommit int
+		)
+
+		result = make(chan Commit)
+
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			for range result {
+				gotCommit++
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			gotError = g.ReadCommit(testCase.repoPath, testCase.commitId, result).Start() != nil
+		}()
+
+		wg.Wait()
+
+		if !gotError {
+			t.Errorf("[%d] Git.ReadCommit(%s, %s, ...) has no errors, want error", key, testCase.repoPath, testCase.commitId)
+		}
+
+		if gotCommit > 0 {
+			t.Errorf("[%d] Git.ReadCommit(%s, %s, ...) got %v commits, want: 0", key, testCase.repoPath, testCase.commitId, gotCommit)
+		}
+	}
+}
+
+func TestGit_ReadCommitOk(t *testing.T) {
+	g := MakeGitMock(t)
+
+	testCase := gitReadCommitTestCase
+
+	var err error
+
+	commit := make([]Commit, 0)
+	result := make(chan Commit)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for c := range result {
+			commit = append(commit, c)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		err = g.ReadCommit(testCase.repoPath, testCase.commitId, result).Start()
+	}()
+
+	wg.Wait()
+
+	if err != nil {
+		t.Fatalf("Git.ReadCommit(%s, %s, ...) got error: %v, want no errors", testCase.repoPath, testCase.commitId, err)
+	}
+
+	if len(commit) != 1 {
+		t.Fatalf("Git.ReadCommit(%s, %s, ...) got %d commits, want: 1", testCase.repoPath, testCase.commitId, len(commit))
+	} else {
+		e := testCase.commit
+		c := commit[0]
+
+		if id, eId := c.Id(), e.Id(); id != eId {
+			t.Fatalf("Git.ReadCommit(%s, %s, ...) commitId = %s, want: %s", testCase.repoPath, testCase.commitId, id, eId)
+		}
+
+		if date, eDate := c.Date().Format(gitLogDateLayout), e.Date().Format(gitLogDateLayout); date != eDate {
+			t.Fatalf("Git.ReadCommit(%s, %s, ...) date = %s, want: %s", testCase.repoPath, testCase.commitId, date, eDate)
+		}
+
+		if author, eAuthor := c.Author().String(), e.Author().String(); author != eAuthor {
+			t.Fatalf("Git.ReadCommit(%s, %s, ...) author = %s, want: %s", testCase.repoPath, testCase.commitId, author, eAuthor)
+		}
+
+		if parents, eParents := strings.Join(c.Parents(), " "), strings.Join(e.parents, " "); parents != eParents {
+			t.Fatalf("Git.ReadCommit(%s, %s, ...) parents = %s, want: %s", testCase.repoPath, testCase.commitId, parents, eParents)
+		}
+
+		if message, eMessage := c.Message(), e.Message(); message != eMessage {
+			t.Fatalf("Git.ReadCommit(%s, %s, ...) message = %s, want: %s", testCase.repoPath, testCase.commitId, message, eMessage)
+		}
 	}
 }

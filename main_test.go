@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 )
 
 const (
@@ -15,6 +16,25 @@ const (
 
 var (
 	expectedGitBranches = []string{"master", "remotes/origin/branch1", "remotes/origin/branch2", "remotes/origin/master"}
+
+	gitReadCommitTestCase = struct{
+		repoPath string
+		commitId string
+		commit Commit
+	}{
+		repoPath: gitRepositoryPath,
+		commitId: "747ad5712f0ddbb482ebb6e07eb779e70b94687f",
+		commit: Commit{
+			id: "747ad5712f0ddbb482ebb6e07eb779e70b94687f",
+			date: time.Date(2016, time.Month(10), 4, 22, 7, 27, 0, time.FixedZone("UTC+3", 3*60*60)),
+			author: Contributor{
+				name: "Max Kalyabin",
+				email: "maksim@kalyabin.ru",
+			},
+			parents: []string{"81cb0276737ca3345faaaec5a5df2a3e1ff5d775"},
+			message: "random commit for random file",
+		},
+	}
 )
 
 // Check testing repository
