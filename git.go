@@ -2,10 +2,9 @@ package vcsview
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
-	"io"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -21,10 +20,9 @@ type Git struct {
 	Cli
 }
 
-// add specific params to execution
-func (g *Git) execute(dir string, out io.Writer, params ...string) error {
-	params = append([]string{"--no-pager"}, params...)
-	return g.Cli.execute(dir, out, params...)
+// add specific params to command
+func (g *Git) createCommand(dir string, params ...string) *exec.Cmd {
+	return g.Cli.createCommand(dir, append([]string{"--no-pager"}, params...)...)
 }
 
 // Returns repository settings pathname
@@ -38,13 +36,29 @@ func (g Git) RepositoryPathname() string {
 func (g Git) Version() (string, error) {
 	versionPattern := regexp.MustCompile(`([\d]+\.?([\d]+)?\.([\d]+)?)`)
 
-	buf := new(bytes.Buffer)
+	var (
+		result string
+		done = make(chan interface{}, 1)
+	)
 
-	if err := g.execute(".", buf, "--version"); err != nil {
-		return "", err
-	}
+	cmd := g.createCommand(".", "--version")
+	reader := cmdReaderFunc(func(s *bufio.Scanner) {
+		for s.Scan() {
+			result += s.Text() + "\n"
+		}
 
-	return versionPattern.FindString(buf.String()), nil
+		done <- struct{}{}
+	})
+
+	e := NewExecutor(&g.Cli, cmd, reader)
+
+	err := e.Start()
+
+	<- done
+
+	close(done)
+
+	return versionPattern.FindString(result), err
 }
 
 // Check project repository
@@ -70,13 +84,25 @@ func (g Git) CheckRepository(projectPath string) error {
 // Check the repository status
 // Throws an error if repository doesnt exists at the path
 func (g Git) StatusRepository(projectPath string) (string, error) {
-	buf := new(bytes.Buffer)
+	var (
+		result string
+		done = make(chan interface{}, 1)
+	)
 
-	if err := g.execute(projectPath, buf, "status", "--short"); err != nil {
-		return "", err
-	}
+	cmd := g.createCommand(projectPath, "status", "--short")
+	reader := cmdReaderFunc(func(s *bufio.Scanner) {
+		for s.Scan() {
+			result += s.Text()+"\n"
+		}
 
-	return buf.String(), nil
+		done <- struct{}{}
+	})
+
+	e := NewExecutor(&g.Cli, cmd, reader)
+
+	err := e.Start()
+
+	return result, err
 }
 
 // Fetch repository branches asynchronously
@@ -85,10 +111,8 @@ func (g Git) ReadBranches(projectPath string, result chan Branch) *Executor {
 	// pattern to read branches line by line
 	p := regexp.MustCompile(`^\*?[\s+|\t]+(?P<id>[^\s]+)[\s+|\t]+(?P<head>[a-fA-F0-9]+)[\s+|\t]+(?P<message>.*)$`)
 
-	e := new(Executor)
-
-	e.cmd = g.createCommand(projectPath, "branch", "-a", "-v")
-	e.reader = cmdReaderFunc(func(s *bufio.Scanner) {
+	cmd := g.createCommand(projectPath, "branch", "-a", "-v")
+	reader := cmdReaderFunc(func(s *bufio.Scanner) {
 		defer close(result)
 
 		for s.Scan() {
@@ -108,17 +132,15 @@ func (g Git) ReadBranches(projectPath string, result chan Branch) *Executor {
 		}
 	})
 
-	return e
+	return NewExecutor(&g.Cli, cmd, reader)
 }
 
 // Fetch repository commit by identifier asynchronously
 // ProjectPath is the absolute path to project with Git repository
 // CommitId is the sha256 commit identifier (or short copy)
 func (g Git) ReadCommit(projectPath string, commitId string, result chan Commit) *Executor {
-	e := new(Executor)
-
-	e.cmd = g.createCommand(projectPath, "show", "--quiet", commitId, `--pretty=format:`+gitLogFormat)
-	e.reader = cmdReaderFunc(func(s *bufio.Scanner) {
+	cmd := g.createCommand(projectPath, "show", "--quiet", commitId, `--pretty=format:`+gitLogFormat)
+	reader := cmdReaderFunc(func(s *bufio.Scanner) {
 		defer close(result)
 
 		data := make([]string, 6)
@@ -150,5 +172,5 @@ func (g Git) ReadCommit(projectPath string, commitId string, result chan Commit)
 		}
 	})
 
-	return e
+	return NewExecutor(&g.Cli, cmd, reader)
 }

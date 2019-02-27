@@ -41,7 +41,7 @@ func (r Repository) AbsPath(subDir string) (string, error) {
 
 	path = filepath.Clean(path)
 
-	if rPath, pPath := []rune(path), []rune(r.projectPath); len(rPath) < len(pPath) || string(rPath[:len(pPath)]) != r.projectPath {
+	if !strings.Contains(path, r.projectPath) {
 		return "", fmt.Errorf("Directory %s out of %s", path, r.projectPath)
 	}
 

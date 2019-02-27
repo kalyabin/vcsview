@@ -10,6 +10,9 @@ type cmdReaderFunc func(s *bufio.Scanner)
 
 // Command line executor
 type Executor struct {
+	// Command line interface
+	cli *Cli
+
 	// Already created command line
 	cmd *exec.Cmd
 
@@ -36,5 +39,19 @@ func (e *Executor) read() func() {
 func (e *Executor) Start() error {
 	go e.read()()
 
-	return e.cmd.Run()
+	err := e.cmd.Run()
+
+	if err != nil && e.cli != nil {
+		e.cli.logCmdNonZeroStatus(e.cmd, err)
+	}
+
+	return err
+}
+
+func NewExecutor(cli *Cli, cmd *exec.Cmd, reader cmdReaderFunc) *Executor {
+	e := new(Executor)
+	e.cmd = cmd
+	e.cli = cli
+	e.reader = reader
+	return e
 }
