@@ -54,6 +54,3 @@ for i in ${!commands[@]}; do
 		touch $FAKE
 	fi
 done
-
-## Test git branches in travis
-cd testdata/git && git branch -a -v && git --no-pager log --format=%H%n%P%n%an%n%ae%n%ad%n%s -n 1 --skip=0 --branches=*branch1*
