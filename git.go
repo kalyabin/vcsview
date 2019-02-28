@@ -6,12 +6,13 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 )
 
 const (
-	gitLogFormat = "%H%n%P%n%an%n%ae%n%ad%n%s%n"
+	gitLogFormat = "%H%n%P%n%an%n%ae%n%ad%n%s"
 	gitLogDateLayout = "Mon Jan 2 15:04:05 2006 -0700"
 )
 
@@ -113,8 +114,6 @@ func (g Git) ReadBranches(projectPath string, result chan Branch) *Executor {
 
 	cmd := g.createCommand(projectPath, "branch", "-a", "-v")
 	reader := cmdReaderFunc(func(s *bufio.Scanner) {
-		defer close(result)
-
 		for s.Scan() {
 			line := s.Bytes()
 
@@ -135,41 +134,88 @@ func (g Git) ReadBranches(projectPath string, result chan Branch) *Executor {
 	return g.executor(cmd, reader)
 }
 
+// Wrapper for read commits from command line stdout
+// Commits will going by such lines:
+// 313604a7f4ecd265e56102fa2e22de35726f4687 <--- Commit sha256
+// 1e16e4aeeef941bd037ed5f70e9d2abcf459ca2e 313604a7f4ecd265e56102fa2ee2de3572df4687 <--- Parents commit sha256
+// Max Kalyabin <--- Author name
+// maksim@kalyabin.ru <--- Author email
+// Wed Feb 27 14:51:45 2019 +0300 <--- Commit date and time
+// read git commit <--- Commit message
+func (g *Git) readCommitsPipe(s *bufio.Scanner, result chan Commit) {
+	data := make([]string, 6)
+	key := 0
+
+	for s.Scan() {
+		str := s.Text()
+
+		data[key] = str
+		key++
+
+		if key == 6 {
+			time, _ := time.Parse(gitLogDateLayout, data[4])
+
+			commit := Commit{
+				id: data[0],
+				parents: strings.Split(data[1], " "),
+				author: Contributor{
+					name: data[2],
+					email: data[3],
+				},
+				date: time,
+				message: data[5],
+			}
+
+			result <- commit
+
+			runtime.Gosched()
+
+			data = make([]string, 6)
+			key = 0
+		}
+	}
+}
+
 // Fetch repository commit by identifier asynchronously
 // ProjectPath is the absolute path to project with Git repository
 // CommitId is the sha256 commit identifier (or short copy)
 func (g Git) ReadCommit(projectPath string, commitId string, result chan Commit) *Executor {
 	cmd := g.createCommand(projectPath, "show", "--quiet", commitId, `--pretty=format:`+gitLogFormat)
 	reader := cmdReaderFunc(func(s *bufio.Scanner) {
-		defer close(result)
+		g.readCommitsPipe(s, result)
+	})
 
-		data := make([]string, 6)
-		key := 0
+	return g.executor(cmd, reader)
+}
 
-		for s.Scan() {
-			data[key] = s.Text()
-			key++
+// Read commits history
+// projectPath should contains absolute path to project with Git repository
+// path should contains relative path of file for history
+// If need provide whole repository history, path should be empty
+// Branch should contain branch identifier if need get specified branch results
+func (g Git) ReadHistory(projectPath string, path string, branch string, offset int, limit int, result chan Commit) *Executor {
+	if branch == "" {
+		branch = "*"
+	} else {
+		branch = "*"+branch+"*"
+	}
 
-			if key == 6 {
-				time, _ := time.Parse(gitLogDateLayout, data[4])
+	args := append(
+		make([]string, 0, 6),
+		"log",
+		`--format=`+gitLogFormat,
+		`-n`,
+		fmt.Sprintf("%d", limit),
+		fmt.Sprintf("--skip=%d", offset),
+		"--branches="+branch)
 
-				commit := Commit{
-					id: data[0],
-					parents: strings.Split(data[1], " "),
-					author: Contributor{
-						name: data[2],
-						email: data[3],
-					},
-					date: time,
-					message: data[5],
-				}
+	if path != "" {
+		args = append(args, "--", path)
+	}
 
-				result <- commit
-
-				key = 0
-				data = make([]string, 6)
-			}
-		}
+	cmd := g.createCommand(projectPath, args...)
+	reader := cmdReaderFunc(func(s *bufio.Scanner) {
+		g.readCommitsPipe(s, result)
 	})
 
 	return g.executor(cmd, reader)

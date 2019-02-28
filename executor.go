@@ -2,6 +2,7 @@ package vcsview
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -27,6 +28,12 @@ type Executor struct {
 
 	// Text representation of command
 	cmdTxt string
+
+	// Command context
+	ctx context.Context
+
+	// Function to stop context
+	cancel context.CancelFunc
 }
 
 // log message if set Debugger
@@ -52,15 +59,19 @@ func (e *Executor) logCmdNonZeroStatus(err error) {
 }
 
 // Create a command stdout pipe and reader function using base reader
-// To start the command run Run method
-// For the async reading run this function in goroutine
-func (e *Executor) read() func() {
-	out, _ := e.cmd.StdoutPipe()
-	s := bufio.NewScanner(out)
+// Read will started after sch channel will filled data
+// After read sch channel will filled data
+func (e *Executor) read(sch chan interface{}) {
+	defer func() {
+		sch <- struct{}{}
+	}()
 
-	return func() {
-		e.reader(s)
-	}
+	out, _ := e.cmd.StdoutPipe()
+
+	<-sch
+
+	e.reader(bufio.NewScanner(out))
+	e.cancel()
 }
 
 // Run command execution
@@ -70,15 +81,26 @@ func (e *Executor) read() func() {
 func (e *Executor) Run() error {
 	e.log(fmt.Sprintf("execute command: %s", e.cmdTxt))
 
-	go e.read()()
+	sch := make(chan interface{})
 
-	err := e.cmd.Run()
+	go e.read(sch)
 
-	if err != nil {
+	sch <- struct{}{}
+
+	if err := e.cmd.Start(); err != nil {
 		e.logCmdNonZeroStatus(err)
+		<- sch
+		return err
 	}
 
-	return err
+	<-sch
+
+	if err := e.cmd.Wait(); err != nil {
+		e.logCmdNonZeroStatus(err)
+		return err
+	}
+
+	return nil
 }
 
 func NewExecutor(cmd *exec.Cmd, reader cmdReaderFunc, debugger DebugFunc) *Executor {
@@ -87,5 +109,6 @@ func NewExecutor(cmd *exec.Cmd, reader cmdReaderFunc, debugger DebugFunc) *Execu
 	e.reader = reader
 	e.debugger = debugger
 	e.cmdTxt = strings.Join(cmd.Args, " ")
+	e.ctx, e.cancel = context.WithCancel(context.Background())
 	return e
 }

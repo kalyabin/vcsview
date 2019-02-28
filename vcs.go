@@ -24,10 +24,19 @@ type Vcs interface {
 	// To start read run executor Run method
 	ReadBranches(projectPath string, result chan Branch) *Executor
 
-	// Create the command whic reads commit from repository by commit id
+	// Create the command which reads commit from repository by commit id
 	// ProjectPath is a path to project with VCS
 	// CommitId is a commit identifier
 	// Result is a channel, whic get commit result
 	// To start read run executor Run method
-	ReadCommit(projecPath string, commitId string, result chan Commit) *Executor
+	ReadCommit(projectPath string, commitId string, result chan Commit) *Executor
+
+	// Create the command which reads commits history from repository by commit id
+	// ProjectPath is a path to project with VCS
+	// Path is a relative file or directory path to read history
+	// If need to read whole project path, path should be empty string (not a dot)
+	// If need to read history of path in some branch, argument branch should contain branch identifier
+	// Offset is number of skipped commits
+	// Limit is number of maximum commits to read
+	ReadHistory(projectPath string, path string, branch string, offset int, limit int, result chan Commit) *Executor
 }

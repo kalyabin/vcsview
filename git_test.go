@@ -97,19 +97,28 @@ func TestGit_ReadBranchesFail(t *testing.T) {
 
 		result = make(chan Branch)
 
+		e := g.ReadBranches(testCase, result)
+
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			for range result {
-				gotBranches++
+
+			loop: for {
+				select {
+				case <-e.ctx.Done():
+					close(result)
+					break loop
+				case <- result:
+					gotBranches++
+				}
 			}
 		}()
 
 		go func() {
 			defer wg.Done()
 
-			gotError = g.ReadBranches(testCase, result).Run() != nil
+			gotError = e.Run() != nil
 		}()
 
 		wg.Wait()
@@ -132,14 +141,22 @@ func TestGit_ReadBranchesOk(t *testing.T) {
 
 	projectPath := gitRepositoryPath
 
+	e := g.ReadBranches(projectPath, result)
+
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
 
-		for branch := range result {
-			branches = append(branches, branch)
+		loop: for {
+			select {
+			case <- e.ctx.Done():
+				close(result)
+				break loop
+			case branch := <- result:
+				branches = append(branches, branch)
+			}
 		}
 	}()
 
@@ -147,7 +164,7 @@ func TestGit_ReadBranchesOk(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		err = g.ReadBranches(projectPath, result).Run()
+		err = e.Run()
 	}()
 
 	wg.Wait()
@@ -210,19 +227,28 @@ func TestGit_ReadCommitFail(t *testing.T) {
 
 		result = make(chan Commit)
 
+		e := g.ReadCommit(testCase.repoPath, testCase.commitId, result)
+
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			for range result {
-				gotCommit++
+
+			loop: for {
+				select {
+				case <-e.ctx.Done():
+					close(result)
+					break loop
+				case <-result:
+					gotCommit++
+				}
 			}
 		}()
 
 		go func() {
 			defer wg.Done()
 
-			gotError = g.ReadCommit(testCase.repoPath, testCase.commitId, result).Run() != nil
+			gotError = e.Run() != nil
 		}()
 
 		wg.Wait()
@@ -247,19 +273,28 @@ func TestGit_ReadCommitOk(t *testing.T) {
 	commit := make([]Commit, 0)
 	result := make(chan Commit)
 
+	e := g.ReadCommit(testCase.repoPath, testCase.commitId, result)
+
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		for c := range result {
-			commit = append(commit, c)
+
+		loop: for {
+			select {
+			case <-e.ctx.Done():
+				close(result)
+				break loop
+			case c := <- result:
+				commit = append(commit, c)
+			}
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 
-		err = g.ReadCommit(testCase.repoPath, testCase.commitId, result).Run()
+		err = e.Run()
 	}()
 
 	wg.Wait()
@@ -292,6 +327,139 @@ func TestGit_ReadCommitOk(t *testing.T) {
 
 		if message, eMessage := c.Message(), e.Message(); message != eMessage {
 			t.Fatalf("Git.ReadCommit(%s, %s, ...) message = %s, want: %s", testCase.repoPath, testCase.commitId, message, eMessage)
+		}
+	}
+}
+
+func TestGit_ReadHistoryFail(t *testing.T) {
+	g := MakeGitMock(t)
+
+	cases := []struct{
+		repoPath string
+		path string
+		branch string
+		offset int
+		limit int
+	}{
+		{noRepositoryPath, "", "", 0, 10},
+	}
+
+	for key, testCase := range cases {
+		var (
+			result chan Commit
+			gotError bool
+			gotCommit int
+		)
+
+		result = make(chan Commit)
+
+		e := g.ReadHistory(testCase.repoPath, testCase.path, testCase.branch, testCase.offset, testCase.limit, result)
+
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+
+			loop: for {
+				select {
+				case <- e.ctx.Done():
+					close(result)
+					break loop
+				case <- result:
+					gotCommit++
+				}
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			gotError = e.Run() != nil
+		}()
+
+		wg.Wait()
+
+		if !gotError {
+			t.Errorf("[%d] Git.ReadHistory(%v) has no errors, want error", key, testCase)
+		}
+
+		if gotCommit > 0 {
+			t.Errorf("[%d] Git.ReadHistory(%v) got %v commits, want: 0", key, testCase, gotCommit)
+		}
+	}
+}
+
+func TestGit_ReadHistoryOk(t *testing.T) {
+	g := MakeGitMock(t)
+
+	cases := []struct{
+		repoPath string
+		path string
+		branch string
+		offset int
+		limit int
+	}{
+		{gitRepositoryPath, "", "", 0, 10},
+		{gitRepositoryPath, "testpath", "", 0, 1},
+		{gitRepositoryPath, "testpath", "", 0, 1},
+		{gitRepositoryPath, "", expectedGitBranches[0], 0, 1},
+		{gitRepositoryPath, "", expectedGitBranches[1], 0, 1},
+		{gitRepositoryPath, "", expectedGitBranches[2], 0, 1},
+		{gitRepositoryPath, "", expectedGitBranches[3], 0, 1},
+		{gitRepositoryPath, "", "", 2, 2},
+	}
+
+	for key, testCase := range cases {
+		var (
+			gotError error
+			gotCommit int
+		)
+
+		result := make(chan Commit, 1)
+		e := g.ReadHistory(testCase.repoPath, testCase.path, testCase.branch, testCase.offset, testCase.limit, result)
+		wg := sync.WaitGroup{}
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			loop: for {
+				select {
+				case <-e.ctx.Done():
+					close(result)
+					break loop
+				case commit := <- result:
+					gotCommit++
+
+					if commit.Id() == "" {
+						t.Fatalf("[%d] Git.ReadHistory(%v) commit has empty identifier", key, testCase)
+					}
+					if len(commit.Parents()) == 0 {
+						t.Fatalf("[%d] Git.ReadHistory(%v) commit has empty parents", key, testCase)
+					}
+					if commit.Message() == "" {
+						t.Fatalf("[%d] Git.ReadHistory(%v) commit has empty message", key, testCase)
+					}
+					if commit.Author().String() == "" {
+						t.Fatalf("[%d] Git.ReadHistory(%v) commit has empty author", key, testCase)
+					}
+					if commit.Date().Unix() < 0 {
+						t.Fatalf("[%d] Git.ReadHistory(%v) commit has empty date", key, testCase)
+					}
+				}
+			}
+		}()
+
+		gotError = e.Run()
+
+		wg.Wait()
+
+		if gotError != nil {
+			t.Fatalf("[%d] Git.ReadHistory(%v) has error: %v, want no errors", key, testCase, gotError)
+		}
+
+		if gotCommit != testCase.limit {
+			t.Fatalf("[%d] Git.ReadHistory(%v) got %v commits, want: %v", key, testCase, gotCommit, testCase.limit)
 		}
 	}
 }
