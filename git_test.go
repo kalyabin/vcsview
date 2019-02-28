@@ -392,6 +392,11 @@ func TestGit_ReadHistoryFail(t *testing.T) {
 func TestGit_ReadHistoryOk(t *testing.T) {
 	g := MakeGitMock(t)
 
+	branchSplit := func(branch string) string {
+		bPieces := strings.Split(branch, "/")
+		return bPieces[len(bPieces)-1]
+	}
+
 	cases := []struct{
 		repoPath string
 		path string
@@ -402,10 +407,10 @@ func TestGit_ReadHistoryOk(t *testing.T) {
 		{gitRepositoryPath, "", "", 0, 10},
 		{gitRepositoryPath, "testpath", "", 0, 1},
 		{gitRepositoryPath, "testpath", "", 0, 1},
-		{gitRepositoryPath, "", expectedGitBranches[0], 0, 1},
-		{gitRepositoryPath, "", expectedGitBranches[1], 0, 1},
-		{gitRepositoryPath, "", expectedGitBranches[2], 0, 1},
-		{gitRepositoryPath, "", expectedGitBranches[3], 0, 1},
+		{gitRepositoryPath, "", branchSplit(expectedGitBranches[0]), 0, 1},
+		{gitRepositoryPath, "", branchSplit(expectedGitBranches[1]), 0, 1},
+		{gitRepositoryPath, "", branchSplit(expectedGitBranches[2]), 0, 1},
+		{gitRepositoryPath, "", branchSplit(expectedGitBranches[3]), 0, 1},
 		{gitRepositoryPath, "", "", 2, 2},
 	}
 
